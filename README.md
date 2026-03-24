@@ -18,7 +18,8 @@ A Blender add-on to typset LaTeX directly into the Video Sequence Editor. Whethe
 Because this add-on uses your computer's native compilers, you **must** have the following installed and accessible in your system's PATH:
 
 1. **A LaTeX Distribution**: (e.g., [TeX Live](https://tug.org/texlive/), [MiKTeX](https://miktex.org/), or [MacTeX](https://tug.org/mactex/)). The add-on specifically calls `pdflatex`.
-2. **Ghostscript**: (Available at [ghostscript.com](https://ghostscript.com/)). The add-on uses `gs` to convert the compiled PDFs into high-quality, transparent PNGs with exact pixel dimensions.
+2. **Biber**: The modern bibliography processing tool. This is usually bundled automatically with TeX Live and MiKTeX, but the add-on relies on the `biber` command to compile references.
+3. **Ghostscript**: (Available at [ghostscript.com](https://ghostscript.com/)). The add-on uses `gs` to convert the compiled PDFs into high-quality, transparent PNGs with exact pixel dimensions.
 
 ## Installation
 
