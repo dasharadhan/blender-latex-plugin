@@ -11,6 +11,13 @@ class VSE_PT_latex_panel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
 
+        # Global Settings
+        box_global = layout.box()
+        box_global.label(text="Global Settings:", icon="WORLD")
+        box_global.prop(scene, "latex_asset_dir", text="Asset Directory")
+
+        layout.separator()
+
         # Beamer Storyboard
         box_beamer = layout.box()
         box_beamer.label(text="Beamer Storyboard:", icon="TEXT")
@@ -22,19 +29,19 @@ class VSE_PT_latex_panel(bpy.types.Panel):
         if not scene.latex_master_doc:
             row.operator("sequencer.create_beamer_template", icon="ADD", text="")
         else:
+            box_beamer.prop(scene, "beamer_bibtex", text="BibTeX Source")
+
             box_beamer.separator()
             res_row = box_beamer.row(align=True)
             res_row.prop(scene, "beamer_res_x", text="X")
             res_row.prop(scene, "beamer_res_y", text="Y")
 
-            box_beamer.separator()
             box_beamer.operator(
                 "sequencer.build_beamer_storyboard",
                 icon="SEQ_SEQUENCER",
                 text="Build Storyboard",
             )
 
-            box_beamer.separator()
             row_del = box_beamer.row()
             row_del.alert = True
             row_del.operator(
@@ -55,14 +62,13 @@ class VSE_PT_latex_panel(bpy.types.Panel):
             "sequencer.add_latex_slide", icon="ADD", text="New LaTeX Slide"
         )
 
-        layout.separator()
-
         if not context.scene.sequence_editor:
             return
 
+        layout.separator()
+
         strip = context.scene.sequence_editor.active_strip
-        if strip and hasattr(strip, "latex_text_datablock"):
-            layout.separator()
+        if strip and strip.is_latex_slide:
             box_strip = layout.box()
             box_strip.label(text=f"Active: {strip.name}", icon="SEQ_STRIP_META")
 
@@ -71,14 +77,12 @@ class VSE_PT_latex_panel(bpy.types.Panel):
             box_strip.prop(strip, "latex_text_datablock", text="")
 
             if strip.latex_text_datablock:
-                box_strip.separator()
                 box_strip.operator(
                     "sequencer.compile_latex_modal",
                     icon="FILE_IMAGE",
                     text="Compile In-Place",
                 )
 
-                box_strip.separator()
                 row = box_strip.row()
                 row.alert = True
                 row.operator(
@@ -87,7 +91,6 @@ class VSE_PT_latex_panel(bpy.types.Panel):
                     text="Delete Slide & Files",
                 )
         else:
-            layout.separator()
             layout.label(text="Select a LaTeX strip to edit.", icon="INFO")
 
 

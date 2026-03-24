@@ -92,6 +92,9 @@ class VSE_OT_add_latex_slide(bpy.types.Operator):
             channel=channel,
             frame_start=start_frame,
         )
+
+        strip.is_latex_slide = True
+
         strip.frame_final_end = start_frame + duration
 
         txt = bpy.data.texts.new(name=f"{strip_name}_source")
@@ -192,13 +195,22 @@ class VSE_OT_compile_latex_modal(bpy.types.Operator):
         else:
             preamble = DEFAULT_PREAMBLE
 
+        raw_asset_dir = context.scene.latex_asset_dir
+        asset_dir = bpy.path.abspath(raw_asset_dir) if raw_asset_dir else ""
+
         full_latex_source = f"\\documentclass{{article}}\n{preamble}\n\\pagestyle{{empty}}\n\\begin{{document}}\n{latex_text}\n\\end{{document}}"
 
         self._result_dict = {}
 
         self._thread = threading.Thread(
             target=compile_latex_to_png,
-            args=(full_latex_source, self._render_dir, strip.name, self._result_dict),
+            args=(
+                full_latex_source,
+                asset_dir,
+                self._render_dir,
+                strip.name,
+                self._result_dict,
+            ),
         )
         self._thread.start()
 
@@ -348,11 +360,19 @@ class VSE_OT_build_beamer_storyboard(bpy.types.Operator):
 
         base_name = "Beamer_Slide"
 
+        raw_asset_dir = context.scene.latex_asset_dir
+        asset_dir = bpy.path.abspath(raw_asset_dir) if raw_asset_dir else ""
+
+        bibtex_txt = context.scene.beamer_bibtex
+        bibtex_source = bibtex_txt.as_string() if bibtex_txt else ""
+
         self._result_dict = {}
         self._thread = threading.Thread(
             target=compile_beamer_storyboard,
             args=(
                 full_latex_source,
+                bibtex_source,
+                asset_dir,
                 render_dir,
                 base_name,
                 res_x,
@@ -458,6 +478,22 @@ def register():
         description="Link a Text datablock for your document preamble",
     )
 
+    bpy.types.Scene.latex_asset_dir = bpy.props.StringProperty(
+        name="Global Asset Directory",
+        subtype="DIR_PATH",
+        description="Directory containing images for \\includegraphics",
+    )
+
+    bpy.types.Scene.beamer_bibtex = bpy.props.PointerProperty(
+        type=bpy.types.Text,
+        name="BibTeX Source",
+        description="Link a Text datablock for .bib references",
+    )
+
+    bpy.types.Sequence.is_latex_slide = bpy.props.BoolProperty(
+        name="Is LaTeX Slide", default=False
+    )
+
     bpy.types.Sequence.latex_strip_preamble = bpy.props.PointerProperty(
         type=bpy.types.Text, name="Slide Preamble"
     )
@@ -481,6 +517,9 @@ def unregister():
     del bpy.types.Scene.beamer_res_y
     del bpy.types.Scene.latex_master_doc
     del bpy.types.Scene.latex_preamble
+    del bpy.types.Scene.latex_asset_dir
+    del bpy.types.Scene.beamer_bibtex
 
+    del bpy.types.Sequence.is_latex_slide
     del bpy.types.Sequence.latex_text_datablock
     del bpy.types.Sequence.latex_strip_preamble
