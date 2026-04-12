@@ -45,10 +45,11 @@ _Best for long, multi-slide presentations or animations._
 
 _Best for quick formulas, lower-thirds, or isolated text graphics._
 
-1. Under **Individual Slides**, click **New LaTeX Slide**. This drops a blank strip onto the timeline.
-2. With the strip selected, assign a text block to the **Body Text** property. (e.g., `\Huge $E=mc^2$`).
-3. _(Optional)_ If this specific slide needs a unique package, assign a separate text block to the **Preamble** property. This overrides the default preamble.
-4. Click **Compile In-Place**.
+1. In the Video Sequencer's Add Menu select **Add>LaTeX>LaTeX Strip**. This drops a LaTeX strip onto the timeline.
+2. With the strip selected, in the strip's properties panel, **Sidebar>Strip>LaTeX Strip Settings** assig a text block to the **Source** property and select **Edit LaTeX Source**.
+3. The LaTeX Editor workspace opens up with the the LaTeX source of the current strip loaded in the Text Editor. Edit the LaTeX source as required (e.g., `\Huge $E=mc^2$`).
+4. _(Optional)_ If this specific slide needs a unique package, assign a separate text block to the **Preamble** property. This overrides the default preamble.
+5. Click **Compile In-Place** in **Sidebar>Strip>LaTeX Strip Settings**.
 
 ## Troubleshooting
 
