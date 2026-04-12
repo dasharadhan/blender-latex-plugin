@@ -16,6 +16,11 @@ class VSE_PT_latex_panel(bpy.types.Panel):
         box_global.label(text="Global Settings:", icon="WORLD")
         box_global.prop(scene, "latex_asset_dir", text="Asset Directory")
 
+        box_global.separator()
+        box_global.label(text="Editor Settings:", icon="PREFERENCES")
+        box_global.prop(scene, "latex_editor_behavior", text="Editor Behavior")
+        box_global.prop(scene, "latex_editor_scroll_behavior", text="Cursor Behavior")
+
         layout.separator()
 
         # Beamer Storyboard
@@ -50,53 +55,80 @@ class VSE_PT_latex_panel(bpy.types.Panel):
                 text="Remove Storyboard",
             )
 
-        layout.separator()
 
-        # Invividual Slides
-        box_single = layout.box()
-        box_single.label(text="Individual Slides:", icon="IMAGE_DATA")
+class SEQUENCER_MT_add_latex(bpy.types.Menu):
+    bl_label = "LaTeX"
+    bl_idname = "SEQUENCER_MT_add_latex"
 
-        # box_single.prop(context.scene, "latex_preamble", text="")
+    def draw(self, context):
+        layout = self.layout
 
-        box_single.operator(
-            "sequencer.add_latex_slide", icon="ADD", text="New LaTeX Slide"
+        layout.operator("sequencer.add_latex_slide", text="LaTeX Strip", icon="TEXT")
+
+
+class SEQUENCER_PT_latex_strip_settings(bpy.types.Panel):
+    bl_label = "LaTeX Strip Settings"
+    bl_idname = "SEQUENCER_PT_latex_strip_settings"
+    bl_space_type = "SEQUENCE_EDITOR"
+    bl_region_type = "UI"
+
+    bl_category = "Strip"
+
+    @classmethod
+    def poll(cls, context):
+        strip = context.scene.sequence_editor.active_strip
+        return strip is not None and getattr(strip, "is_latex_slide", False)
+
+    def draw(self, context):
+        layout = self.layout
+        strip = context.scene.sequence_editor.active_strip
+
+        layout.prop(strip, "latex_strip_preamble", text="Preamble")
+        # layout.prop(strip, "latex_text_datablock", text="Source Text")
+
+        layout.label(text="LaTeX Source:")
+        layout.template_ID(
+            strip, "latex_text_datablock", new="text.new", open="text.open"
         )
 
-        if not context.scene.sequence_editor:
-            return
+        if strip.latex_text_datablock:
+            layout.operator(
+                "sequencer.edit_latex_source", icon="TEXT", text="Edit LaTeX Source"
+            )
 
         layout.separator()
 
-        strip = context.scene.sequence_editor.active_strip
-        if strip and strip.is_latex_slide:
-            box_strip = layout.box()
-            box_strip.label(text=f"Active: {strip.name}", icon="SEQ_STRIP_META")
+        if getattr(strip, "latex_text_datablock", None):
+            layout.operator(
+                "sequencer.compile_latex_modal",
+                icon="FILE_IMAGE",
+                text="Compile In-Place",
+            )
 
-            box_strip.prop(strip, "latex_strip_preamble", text="Preamble")
+        row = layout.row()
+        row.alert = True
+        row.operator(
+            "sequencer.delete_latex_slide", icon="TRASH", text="Delete Strip & Files"
+        )
 
-            box_strip.prop(strip, "latex_text_datablock", text="")
 
-            if strip.latex_text_datablock:
-                box_strip.operator(
-                    "sequencer.compile_latex_modal",
-                    icon="FILE_IMAGE",
-                    text="Compile In-Place",
-                )
-
-                row = box_strip.row()
-                row.alert = True
-                row.operator(
-                    "sequencer.delete_latex_slide",
-                    icon="TRASH",
-                    text="Delete Slide & Files",
-                )
-        else:
-            layout.label(text="Select a LaTeX strip to edit.", icon="INFO")
+def menu_func_add_latex(self, context):
+    self.layout.menu(SEQUENCER_MT_add_latex.bl_idname, icon="TEXT")
 
 
 def register():
     bpy.utils.register_class(VSE_PT_latex_panel)
 
+    bpy.utils.register_class(SEQUENCER_MT_add_latex)
+    bpy.utils.register_class(SEQUENCER_PT_latex_strip_settings)
+
+    bpy.types.SEQUENCER_MT_add.append(menu_func_add_latex)
+
 
 def unregister():
     bpy.utils.unregister_class(VSE_PT_latex_panel)
+
+    bpy.types.SEQUENCER_MT_add.remove(menu_func_add_latex)
+
+    bpy.utils.unregister_class(SEQUENCER_MT_add_latex)
+    bpy.utils.unregister_class(SEQUENCER_PT_latex_strip_settings)

@@ -111,6 +111,208 @@ class VSE_OT_add_latex_slide(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class SEQUENCER_OT_edit_latex_source(bpy.types.Operator):
+    """Opens the LaTeX source code for the active strip in a floating window"""
+
+    bl_idname = "sequencer.edit_latex_source"
+    bl_label = "Edit LaTeX Source"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        strip = context.scene.sequence_editor.active_strip
+        return (
+            strip is not None
+            and getattr(strip, "latex_text_datablock", None) is not None
+        )
+
+    def execute(self, context):
+        strip = context.scene.sequence_editor.active_strip
+        text_block = strip.latex_text_datablock
+        behavior = context.scene.latex_editor_behavior
+
+        def assign_text(space, text_block, context):
+            """Helper function to format the text editor window"""
+            space.text = text_block
+
+            if context.scene.latex_editor_scroll_behavior == "TOP":
+                # Force the scroll bar to the top
+                space.top = 0
+
+                # Force the cursor to the first character of the first line
+                text_block.current_line_index = 0
+                text_block.current_character = 0
+
+        if behavior == "WINDOW":
+            # Open a new window
+            bpy.ops.wm.window_new()
+
+            # Grab newly created window
+            new_window = context.window_manager.windows[-1]
+
+            # Find main area of new window and turn it into a Text Editor
+            area = new_window.screen.areas[0]
+            area.type = "TEXT_EDITOR"
+
+            # Load the code for the current strip into the Text Editor
+            for space in area.spaces:
+                if space.type == "TEXT_EDITOR":
+                    assign_text(space, text_block, context)
+
+                    break
+
+        elif behavior == "WORKSPACE":
+            workspace_name = "LaTeX Editor"
+            target_ws = bpy.data.workspaces.get(workspace_name)
+
+            if target_ws:
+                # Workspace already exists
+                # Switch to it and update the text block in the text editor
+                context.window.workspace = target_ws
+
+                def update_existing_ui():
+                    window = bpy.context.window
+                    if not window or not window.screen:
+                        return None
+
+                    for area in window.screen.areas:
+                        if area.type == "TEXT_EDITOR":
+                            for space in area.spaces:
+                                if space.type == "TEXT_EDITOR":
+                                    assign_text(space, text_block, context)
+                                    break
+                            break
+
+                    return None
+
+                bpy.app.timers.register(update_existing_ui, first_interval=0.05)
+
+            else:
+                # Workspace does not exist
+
+                # Switch to the base workspace
+                base_ws = bpy.data.workspaces.get("Video Editing")
+                if base_ws:
+                    context.window.workspace = base_ws
+
+                def duplicate_video_editing_workspace():
+                    # Save the current list of workspaces
+                    existing_workspaces = set(bpy.data.workspaces.keys())
+
+                    # Duplicate the current workspace
+                    bpy.ops.workspace.duplicate()
+
+                    # Find out the name of the newly created workspace
+                    new_workspace_names = (
+                        set(bpy.data.workspaces.keys()) - existing_workspaces
+                    )
+
+                    if not new_workspace_names:
+                        return None
+
+                    created_ws_name = list(new_workspace_names)[0]
+
+                    target_ws = bpy.data.workspaces.get(created_ws_name)
+
+                    def setup_latex_editor_workspace():
+                        # Rename it
+                        target_ws.name = workspace_name
+
+                        # Reorder it to the back
+                        bpy.ops.workspace.reorder_to_back()
+
+                        window = bpy.context.window
+                        if not window or not window.screen:
+                            return None
+
+                        screen = window.screen
+
+                        # Remove areas we do not need
+                        areas_to_close = [
+                            area
+                            for area in screen.areas
+                            if area.type in {"FILE_BROWSER", "PROPERTIES", "OUTLINER"}
+                        ]
+
+                        for area in areas_to_close:
+                            with bpy.context.temp_override(window=window, area=area):
+                                bpy.ops.screen.area_close()
+
+                        # Find the preview area
+                        preview_area = None
+                        for area in screen.areas:
+                            if area.type == "SEQUENCE_EDITOR":
+                                if area.spaces[0].view_type == "PREVIEW":
+                                    preview_area = area
+                                    break
+
+                        # Split the preview area vertically down the middle
+                        if preview_area:
+                            with bpy.context.temp_override(
+                                window=window, area=preview_area
+                            ):
+                                bpy.ops.screen.area_split(
+                                    direction="VERTICAL", factor=0.5
+                                )
+
+                            new_area = screen.areas[-1]
+                            new_area.type = "TEXT_EDITOR"
+
+                        attempts = [0]
+
+                        def assign_text_to_text_editor():
+                            attempts[0] += 1
+                            if attempts[0] > 5:
+                                print(
+                                    "Timeout: Count not set the text block corresponding to the LaTeX strip. Try again"
+                                )
+                                return None
+
+                            window = bpy.context.window
+
+                            if not window or not window.screen:
+                                return 0.05  # Window not ready, try again
+
+                            is_assigned = False
+
+                            for area in window.screen.areas:
+                                if area.type == "TEXT_EDITOR":
+                                    for space in area.spaces:
+                                        if space.type == "TEXT_EDITOR":
+                                            try:
+                                                assign_text(space, text_block, context)
+                                                is_assigned = True
+                                            except AttributeError:
+                                                pass
+                                            break
+                                    if is_assigned:
+                                        break
+
+                            if not is_assigned:
+                                return 0.05  # Area not ready. Try again.
+
+                            return None
+
+                        # Load the code for the current strip into the Text Editor
+                        bpy.app.timers.register(
+                            assign_text_to_text_editor, first_interval=0.05
+                        )
+
+                        return None
+
+                    # Setup latex editor workspace after creating it
+                    bpy.app.timers.register(
+                        setup_latex_editor_workspace, first_interval=0.05
+                    )
+
+                # Create latex editor editing workspace
+                bpy.app.timers.register(
+                    duplicate_video_editing_workspace, first_interval=0.05
+                )
+
+        return {"FINISHED"}
+
+
 class VSE_OT_compile_latex_modal(bpy.types.Operator):
     """Compiles the linked LaTeX Text Datablock and updates the strip in-place"""
 
@@ -459,6 +661,7 @@ def register():
     bpy.utils.register_class(VSE_OT_create_beamer_template)
     bpy.utils.register_class(VSE_OT_build_beamer_storyboard)
     bpy.utils.register_class(VSE_OT_remove_beamer_storyboard)
+    bpy.utils.register_class(SEQUENCER_OT_edit_latex_source)
 
     bpy.types.Scene.beamer_res_x = bpy.props.IntProperty(
         name="Resolution X", default=1920, min=100
@@ -490,6 +693,34 @@ def register():
         description="Link a Text datablock for .bib references",
     )
 
+    bpy.types.Scene.latex_editor_behavior = bpy.props.EnumProperty(
+        name="Editor Mode",
+        description="Choose how the LaTeX source editor opens",
+        items=[
+            ("WINDOW", "Floating Window", "Pop out a temporary text editor window"),
+            ("WORKSPACE", "Workspace", "Switch to a dedicated LaTeX editing workspace"),
+        ],
+        default="WORKSPACE",
+    )
+
+    bpy.types.Scene.latex_editor_scroll_behavior = bpy.props.EnumProperty(
+        name="Scroll Behavior",
+        description="Where the text editor places the cursor when opening the source",
+        items=[
+            (
+                "TOP",
+                "Scroll to the Top",
+                "Always reset the cursor and scroll to the first line",
+            ),
+            (
+                "REMEMBER",
+                "Remember Cursor Position",
+                "Open exactly where you left off the last time",
+            ),
+        ],
+        default="TOP",
+    )
+
     bpy.types.Sequence.is_latex_slide = bpy.props.BoolProperty(
         name="Is LaTeX Slide", default=False
     )
@@ -512,6 +743,7 @@ def unregister():
     bpy.utils.unregister_class(VSE_OT_build_beamer_storyboard)
     bpy.utils.unregister_class(VSE_OT_create_beamer_template)
     bpy.utils.unregister_class(VSE_OT_remove_beamer_storyboard)
+    bpy.utils.unregister_class(SEQUENCER_OT_edit_latex_source)
 
     del bpy.types.Scene.beamer_res_x
     del bpy.types.Scene.beamer_res_y
@@ -519,6 +751,8 @@ def unregister():
     del bpy.types.Scene.latex_preamble
     del bpy.types.Scene.latex_asset_dir
     del bpy.types.Scene.beamer_bibtex
+    del bpy.types.Scene.latex_editor_behavior
+    del bpy.types.Scene.latex_editor_scroll_behavior
 
     del bpy.types.Sequence.is_latex_slide
     del bpy.types.Sequence.latex_text_datablock
