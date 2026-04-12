@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Blender LaTeX Plugin",
     "author": "Dasharadhan Mahalingam",
-    "version": (1, 1),
+    "version": (1, 2),
     "blender": (4, 2, 2),
     "location": "VSE > Sidebar",
     "description": "A Blender plugin for typesetting using LaTeX",
